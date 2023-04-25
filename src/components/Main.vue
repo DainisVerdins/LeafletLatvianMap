@@ -4,12 +4,15 @@
 
 <script>
 import L from 'Leaflet';
+
 export default {
   data: () => ({
     theMap: null,
   }),
+
   mounted() {
-    this.init()
+    this.init();
+
   },
   methods: {
     init() {
@@ -23,6 +26,14 @@ export default {
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
+
+      const foo = this.getPlaces();
+    },
+
+    getPlaces() {
+      fetch('../src/datafiles/AW_VIETU_CENTROIDI.CSV')
+  .then(response => response.text())
+  .then(text => console.log(text))
     }
   },
 }
@@ -30,7 +41,8 @@ export default {
 
 <style scoped>
 #map {
-  width: 1024px; /*make them constants? */
+  width: 1024px;
+  /*make them constants? */
   height: 576px;
 }
 </style>
