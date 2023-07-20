@@ -2,7 +2,7 @@ export const CONSTANT = Object.freeze({
     CSV_FILE: Object.freeze({
         PATH :'src/datafiles',
         FILE_NAME : 'AW_VIETU_CENTROIDI.CSV',
-        DELIMETER : '#',
+        DELIMITER : '#',
         SEPARATOR : ';'
       }),
     DEFAULT_VIEW: Object.freeze({

@@ -1,16 +1,20 @@
-<template>
+<template v-if="isLoaded">
+<!--Need to think about why isLoaded on template all works but not in map-container-->
     <div class="map-container">
         <div id="map"></div>
         <div class="input-group mb-3 mt-3 px-3">
             <input type="text" class="form-control" placeholder="Apdzivotas vietas nosaukums" v-model="searchText">
             <div class="input-group-append ">
-                <button class="btn btn-primary" @click="searchPlaces" type="button">
+                <button class="btn btn-primary"  type="button">
                     Meklēt
+                    {{ defaultLivingPlaces?.length ?? 'Nope' }}
+                    asdfsa
                 </button>
-                <button class="btn btn-success" @click="zoomToPlace" type="button" :disabled="haveSearchResults()">
+                <button class="btn btn-success"  type="button">
                     Zoom rezultātu
+                    {{  isLoaded }}
                 </button>
-                <button class="btn btn-info" @click="toDefaults" type="button">
+                <button class="btn btn-info"  type="button">
                     Atiestatīt visu
                 </button>
             </div>
@@ -19,17 +23,26 @@
 </template>
   
 <script setup>
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import L from 'Leaflet';
 import CONSTANT from '../constants';
+import livingPlaceService from '../services/living-place-service';
 
-const mapHandler = L.map('map'); // Probably should be ref. Because its time to time changes
+let mapHandler; // Probably should be ref. Because its time to time changes
+let defaultLivingPlaces = ref([]);
+const searchText = ref('');
+const isLoaded = ref(false);
 
 onMounted(async () => {
+    mapHandler = L.map('map');
     setDefaultView();
+
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(mapHandler);
+    }).addTo(mapHandler);
+
+    defaultLivingPlaces = await livingPlaceService.getLivingPlaces();
+    isLoaded.value = true;
 });
 
 function setDefaultView() {
