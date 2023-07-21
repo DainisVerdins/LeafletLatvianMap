@@ -1,20 +1,21 @@
 <template v-if="isLoaded">
-<!--Need to think about why isLoaded on template all works but not in map-container-->
+    <!--Need to think about why isLoaded on template all works but not in map-container-->
     <div class="map-container">
         <div id="map"></div>
         <div class="input-group mb-3 mt-3 px-3">
             <input type="text" class="form-control" placeholder="Apdzivotas vietas nosaukums" v-model="searchText">
             <div class="input-group-append ">
-                <button class="btn btn-primary"  type="button">
+                <button class="btn btn-primary" type="button" @click="filterPlaces">
                     Meklēt
+                    {{ filteredLivingPlaces?.length ?? 'Nope' }}
                     {{ defaultLivingPlaces?.length ?? 'Nope' }}
                     asdfsa
                 </button>
-                <button class="btn btn-success"  type="button">
+                <button class="btn btn-success" type="button">
                     Zoom rezultātu
-                    {{  isLoaded }}
+                    {{ searchText }}
                 </button>
-                <button class="btn btn-info"  type="button">
+                <button class="btn btn-info" type="button">
                     Atiestatīt visu
                 </button>
             </div>
@@ -23,13 +24,13 @@
 </template>
   
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import L from 'Leaflet';
 import CONSTANT from '../constants';
 import livingPlaceService from '../services/living-place-service';
 
 let mapHandler; // Probably should be ref. Because its time to time changes
-let defaultLivingPlaces = ref([]);
+let defaultLivingPlaces = [];
 const searchText = ref('');
 const isLoaded = ref(false);
 
@@ -42,12 +43,73 @@ onMounted(async () => {
     }).addTo(mapHandler);
 
     defaultLivingPlaces = await livingPlaceService.getLivingPlaces();
+    placeCornerLivingPlacesOnMap();
     isLoaded.value = true;
 });
+
+const filteredLivingPlaces = computed(() => {
+    if (searchText.value) {
+        return defaultLivingPlaces?.filter((place) => {
+            return place.NOSAUKUMS && place.NOSAUKUMS.toLowerCase().includes(searchText.value.toLowerCase());
+        });
+    }
+
+    return defaultLivingPlaces;
+})
 
 function setDefaultView() {
     mapHandler.setView([CONSTANT.DEFAULT_VIEW.LATITUDE, CONSTANT.DEFAULT_VIEW.LONGITUDE], CONSTANT.DEFAULT_VIEW.ZOOM);
 };
+
+function placeCornerLivingPlacesOnMap() {
+    let southeastLivingPlace = defaultLivingPlaces[0];
+    let northeastLivingPlace = defaultLivingPlaces[0];
+    let easternLivingPlace = defaultLivingPlaces[0];
+    let westernLivingPlace = defaultLivingPlaces[0];
+
+    for (const place of defaultLivingPlaces) {
+        if (westernLivingPlace.DD_E > place.DD_E)
+            westernLivingPlace = place;
+
+        if (easternLivingPlace.DD_E < place.DD_E)
+            easternLivingPlace = place;
+
+        if (southeastLivingPlace.DD_N > place.DD_N)
+            southeastLivingPlace = place;
+
+        if (northeastLivingPlace.DD_N < place.DD_N)
+            northeastLivingPlace = place;
+    }
+
+    const farthestResidentPlaces = [
+        { ...northeastLivingPlace, PUSE: 'Ziemeļ' },
+        { ...easternLivingPlace, PUSE: 'Austrum' },
+        { ...southeastLivingPlace, PUSE: 'Dienvid' },
+        { ...westernLivingPlace, PUSE: 'Rietum' }
+    ];
+
+    for (const place of farthestResidentPlaces) {
+        L.marker([place.DD_N, place.DD_E]).addTo(mapHandler)
+            .bindPopup(`Tālākais apdzīvotais punkts uz ${place.PUSE}iem.<br>Apdz vietas nosaukums: ${place.NOSAUKUMS}.`)
+            .openPopup();
+    }
+}
+function filterPlaces() {
+    const greenIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+    const places = filteredLivingPlaces;
+    for (const place of places.value) {
+        const marker = L.marker([place.DD_N, place.DD_E], { icon: greenIcon }).addTo(mapHandler)
+            .bindPopup(`Rezultāts .<br>Apdz vietas nosaukums: ${place.NOSAUKUMS}.`)
+            .openPopup();
+    }
+}
 
 </script>
 <style scoped>
