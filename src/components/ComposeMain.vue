@@ -104,9 +104,8 @@ function popupOnMap() {
 
     for (const placePopup of cornerLivingPlacesMarkers)
         mapHandler.removeLayer(placePopup);
-    
-    for (const placePopup of filteredLivingPlacesMarkers)
-        mapHandler.removeLayer(placePopup);
+
+    removeFilteredLivingPlacesMarkers();
 
     const greenIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -121,7 +120,7 @@ function popupOnMap() {
         const marker = L.marker([place.DD_N, place.DD_E], { icon: greenIcon }).addTo(mapHandler)
             .bindPopup(`Rezultāts .<br>Apdz vietas nosaukums: ${place.NOSAUKUMS}.`)
             .openPopup();
-        
+
         filteredLivingPlacesMarkers.push(marker);
     }
 }
@@ -129,6 +128,10 @@ function popupOnMap() {
 function revert() {
     setDefaultView();
     placeCornerLivingPlacesOnMap();
+    removeFilteredLivingPlacesMarkers();
+}
+
+function removeFilteredLivingPlacesMarkers() {
     for (const placePopup of filteredLivingPlacesMarkers)
         mapHandler.removeLayer(placePopup);
 }
