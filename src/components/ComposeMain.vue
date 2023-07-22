@@ -5,17 +5,11 @@
         <div class="input-group mb-3 mt-3 px-3">
             <input type="text" class="form-control" placeholder="Apdzivotas vietas nosaukums" v-model="searchText">
             <div class="input-group-append ">
-                <button class="btn btn-primary" type="button" @click="filterPlaces">
-                    Meklēt
-                    {{ filteredLivingPlaces?.length ?? 'Nope' }}
-                    {{ defaultLivingPlaces?.length ?? 'Nope' }}
-                    asdfsa
+                <button class="btn btn-primary" type="button" @click="popupOnMap">
+                    Meklēšanas rezultāts
+                    <span class="badge badge-light">{{ filteredLivingPlaces?.length ?? 'NAV' }}</span>
                 </button>
-                <button class="btn btn-success" type="button">
-                    Zoom rezultātu
-                    {{ searchText }}
-                </button>
-                <button class="btn btn-info" type="button">
+                <button class="btn btn-info" type="button" @click="revert">
                     Atiestatīt visu
                 </button>
             </div>
@@ -29,8 +23,11 @@ import L from 'Leaflet';
 import CONSTANT from '../constants';
 import livingPlaceService from '../services/living-place-service';
 
-let mapHandler; // Probably should be ref. Because its time to time changes
+let mapHandler;
 let defaultLivingPlaces = [];
+let cornerLivingPlaces = [];
+let cornerLivingPlacesMarkers = [];
+let filteredLivingPlacesMarkers = [];
 const searchText = ref('');
 const isLoaded = ref(false);
 
@@ -43,25 +40,7 @@ onMounted(async () => {
     }).addTo(mapHandler);
 
     defaultLivingPlaces = await livingPlaceService.getLivingPlaces();
-    placeCornerLivingPlacesOnMap();
-    isLoaded.value = true;
-});
 
-const filteredLivingPlaces = computed(() => {
-    if (searchText.value) {
-        return defaultLivingPlaces?.filter((place) => {
-            return place.NOSAUKUMS && place.NOSAUKUMS.toLowerCase().includes(searchText.value.toLowerCase());
-        });
-    }
-
-    return defaultLivingPlaces;
-})
-
-function setDefaultView() {
-    mapHandler.setView([CONSTANT.DEFAULT_VIEW.LATITUDE, CONSTANT.DEFAULT_VIEW.LONGITUDE], CONSTANT.DEFAULT_VIEW.ZOOM);
-};
-
-function placeCornerLivingPlacesOnMap() {
     let southeastLivingPlace = defaultLivingPlaces[0];
     let northeastLivingPlace = defaultLivingPlaces[0];
     let easternLivingPlace = defaultLivingPlaces[0];
@@ -81,20 +60,54 @@ function placeCornerLivingPlacesOnMap() {
             northeastLivingPlace = place;
     }
 
-    const farthestResidentPlaces = [
-        { ...northeastLivingPlace, PUSE: 'Ziemeļ' },
-        { ...easternLivingPlace, PUSE: 'Austrum' },
-        { ...southeastLivingPlace, PUSE: 'Dienvid' },
-        { ...westernLivingPlace, PUSE: 'Rietum' }
+    cornerLivingPlaces = [
+        { ...northeastLivingPlace, PUSE: 'Ziemeļi' },
+        { ...easternLivingPlace, PUSE: 'Austrumi' },
+        { ...southeastLivingPlace, PUSE: 'Dienvidi' },
+        { ...westernLivingPlace, PUSE: 'Rietumi' }
     ];
 
-    for (const place of farthestResidentPlaces) {
-        L.marker([place.DD_N, place.DD_E]).addTo(mapHandler)
-            .bindPopup(`Tālākais apdzīvotais punkts uz ${place.PUSE}iem.<br>Apdz vietas nosaukums: ${place.NOSAUKUMS}.`)
-            .openPopup();
+    placeCornerLivingPlacesOnMap();
+
+    isLoaded.value = true;
+});
+
+const filteredLivingPlaces = computed(() => {
+    if (searchText.value) {
+        return defaultLivingPlaces?.filter((place) => {
+            return place.NOSAUKUMS && place.NOSAUKUMS.toLowerCase().includes(searchText.value.toLowerCase());
+        });
     }
+
+    return defaultLivingPlaces;
+})
+
+function setDefaultView() {
+    mapHandler.setView([CONSTANT.DEFAULT_VIEW.LATITUDE, CONSTANT.DEFAULT_VIEW.LONGITUDE], CONSTANT.DEFAULT_VIEW.ZOOM);
+};
+
+function placeCornerLivingPlacesOnMap() {
+    for (const place of cornerLivingPlaces) {
+        const marker = L.marker([place.DD_N, place.DD_E]).addTo(mapHandler)
+            .bindPopup(`Tālākais apdzīvotais punkts uz ${place.PUSE}em.<br>Apdz vietas nosaukums: ${place.NOSAUKUMS}.`)
+            .openPopup();
+
+        cornerLivingPlacesMarkers.push(marker);
+    };
 }
-function filterPlaces() {
+// TODO: make some logic if user presses same button twice to not redraw everything
+// Probably flag to check if cornerLivingPlacesMarkers are already removed
+// watcher what watches searchText variable if it changes set to true flag to remove filteredLivingPlacesMarkers from map
+function popupOnMap() {
+    if (!filteredLivingPlaces.value)
+        return;
+
+    for (const placePopup of cornerLivingPlacesMarkers)
+        mapHandler.removeLayer(placePopup);
+    
+    for (const placePopup of filteredLivingPlacesMarkers)
+        mapHandler.removeLayer(placePopup);
+
     const greenIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -103,12 +116,21 @@ function filterPlaces() {
         popupAnchor: [1, -34],
         shadowSize: [41, 41]
     });
-    const places = filteredLivingPlaces;
-    for (const place of places.value) {
+
+    for (const place of filteredLivingPlaces.value) {
         const marker = L.marker([place.DD_N, place.DD_E], { icon: greenIcon }).addTo(mapHandler)
             .bindPopup(`Rezultāts .<br>Apdz vietas nosaukums: ${place.NOSAUKUMS}.`)
             .openPopup();
+        
+        filteredLivingPlacesMarkers.push(marker);
     }
+}
+
+function revert() {
+    setDefaultView();
+    placeCornerLivingPlacesOnMap();
+    for (const placePopup of filteredLivingPlacesMarkers)
+        mapHandler.removeLayer(placePopup);
 }
 
 </script>
